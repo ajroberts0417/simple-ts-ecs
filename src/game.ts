@@ -18,6 +18,10 @@ const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
 export const Position = defineComponent({ x: Types.f32, y: Types.f32 });
 export const Velocity = defineComponent({ x: Types.f32, y: Types.f32 });
 export const PlayerControlled = defineComponent();
+export const Collider = defineComponent({
+    width: Types.f32,
+    height: Types.f32
+});
 
 // --------------------
 // Input State (outside ECS)
@@ -42,6 +46,7 @@ const SQUARE_SIZE = 100;
 const playerQuery = defineQuery([PlayerControlled, Velocity]);
 const motionQuery = defineQuery([Position, Velocity]);
 const renderQuery = defineQuery([Position]);
+const colliderQuery = defineQuery([Position, Velocity, Collider]);
 
 function inputSystem(world: any, _dt: number) {
     const entities = playerQuery(world);
@@ -82,6 +87,37 @@ function physicsSystem(world: any, dt: number) {
     return world;
 }
 
+function collisionSystem(world: any) {
+    const entities = colliderQuery(world);
+    for (let i = 0; i < entities.length; i++) {
+        const a = entities[i];
+        const ax = Position.x[a];
+        const ay = Position.y[a];
+        const aw = Collider.width[a];
+        const ah = Collider.height[a];
+
+        for (let j = i + 1; j < entities.length; j++) {
+            const b = entities[j];
+            const bx = Position.x[b];
+            const by = Position.y[b];
+            const bw = Collider.width[b];
+            const bh = Collider.height[b];
+
+            const overlapX = ax < bx + bw && ax + aw > bx;
+            const overlapY = ay < by + bh && ay + ah > by;
+
+            if (overlapX && overlapY) {
+                // Basic resolution: stop both entities
+                Velocity.x[a] = 0;
+                Velocity.y[a] = 0;
+                Velocity.x[b] = 0;
+                Velocity.y[b] = 0;
+            }
+        }
+    }
+    return world;
+}
+
 function renderSystem(world: any) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const entities = renderQuery(world);
@@ -113,6 +149,7 @@ const world = createWorld();
 const player = addEntity(world);
 addComponent(world, Position, player);
 addComponent(world, Velocity, player);
+addComponent(world, Collider, player);
 addComponent(world, PlayerControlled, player);
 
 // Initial transform
@@ -120,7 +157,29 @@ Position.x[player] = 100;
 Position.y[player] = 100;
 Velocity.x[player] = 0;
 Velocity.y[player] = 0;
+Collider.width[player] = SQUARE_SIZE;
+Collider.height[player] = SQUARE_SIZE;
 
+// --------------------
+// Additional test squares
+// --------------------
+function spawnSquare(x: number, y: number, vx = 0, vy = 0) {
+    const eid = addEntity(world);
+    addComponent(world, Position, eid);
+    addComponent(world, Velocity, eid);
+    addComponent(world, Collider, eid);
+    Position.x[eid] = x;
+    Position.y[eid] = y;
+    Velocity.x[eid] = vx;
+    Velocity.y[eid] = vy;
+    Collider.width[eid] = SQUARE_SIZE;
+    Collider.height[eid] = SQUARE_SIZE;
+    return eid;
+}
+
+// Spawn two more squares
+spawnSquare(300, 100, -50, 0); // moving slowly left
+spawnSquare(500, 300, 0, -30); // moving slowly up
 // --------------------
 // Main Game Loop
 // --------------------
@@ -131,6 +190,7 @@ function gameLoop(currentTime: number) {
 
     inputSystem(world, dt);
     physicsSystem(world, dt);
+    collisionSystem(world);
     renderSystem(world);
 
     requestAnimationFrame(gameLoop);
