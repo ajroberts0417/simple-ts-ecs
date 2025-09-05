@@ -9,12 +9,12 @@ const playerQuery = defineQuery([PlayerControlled, Velocity, Position]);
 export function inputSystem(world: IWorld, _dt: number, canvas: HTMLCanvasElement): IWorld {
     const entities = playerQuery(world);
     for (const eid of entities) {
-        if (InputState.keysDown.has("ArrowLeft")) Velocity.x[eid] = -MOVE_SPEED;
-        else if (InputState.keysDown.has("ArrowRight")) Velocity.x[eid] = MOVE_SPEED;
+        if (InputState.keysDown.has("A")) Velocity.x[eid] = -MOVE_SPEED;
+        else if (InputState.keysDown.has("D")) Velocity.x[eid] = MOVE_SPEED;
         else Velocity.x[eid] = 0;
 
         if (
-            InputState.keysDown.has("ArrowUp") &&
+            InputState.keysDown.has("W") &&
             Position.y[eid] >= canvas.height - SQUARE_SIZE
         ) {
             Velocity.y[eid] = -MOVE_SPEED * 2;
